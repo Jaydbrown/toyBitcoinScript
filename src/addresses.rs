@@ -49,21 +49,16 @@ impl ToyScript {
         Action::PushData(data) => stack.push(data.to_vec()),
 
         Action::ExecuteOpcode(op) => match op {
-            // push constants
             Opcode::Op1Negate => stack.push(vec![0x81]),
             Opcode::Op1 => stack.push(vec![1]),
             Opcode::Op2 => stack.push(vec![2]),
             Opcode::Op3 => stack.push(vec![3]),
-
-            // flow control
             Opcode::OpVerify => {
                 if !is_true(&stack.pop()?) {
                     return Err("OpVerify failed");
                 }
             }
             Opcode::OpReturn => return Err("OpReturn: script terminated"),
-
-            // stack manipulation
             Opcode::OpToAltStack => alt.push(stack.pop()?),
             Opcode::OpFromAltStack => stack.push(alt.pop()?),
             Opcode::OpDrop => {
@@ -94,7 +89,6 @@ impl ToyScript {
                 }
             }
 
-            // arithmetic
             Opcode::Op1Add => {
                 let n = decode_num(&stack.pop()?)?;
                 stack.push(encode_num(n + 1));
@@ -113,8 +107,6 @@ impl ToyScript {
                 let a = decode_num(&stack.pop()?)?;
                 stack.push(encode_num(a - b)); 
             }
-
-            // crypto
             Opcode::OpHash160 => {
                 let data = stack.pop()?;
                 stack.push(hash160(&data));
