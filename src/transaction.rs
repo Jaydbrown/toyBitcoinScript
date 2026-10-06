@@ -7,7 +7,7 @@ pub struct TxIn{
 
 pub struct TxOut {
     pub value: u64,
-    scriptPubkey: Vec<u8>,
+    pub scriptPubkey: Vec<u8>,
 }
 
 pub struct Tx {
@@ -27,11 +27,11 @@ impl Tx {
         }
     }
 
-    pub fn tx_in(tx: TxIn) {
+    pub fn tx_in(&mut self, tx: TxIn) {
         self.inputs.push(tx)
     }
 
-    pub fn tx_out(tx: TxOut) {
+    pub fn tx_out(&mut self, tx: TxOut) {
         self.outputs.push(tx)
     }
 }
