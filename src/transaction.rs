@@ -26,4 +26,12 @@ impl Tx {
             locktime,
         }
     }
+
+    pub fn tx_in(tx: TxIn) {
+        self.inputs.push(tx)
+    }
+
+    pub fn tx_out(tx: TxOut) {
+        self.outputs.push(tx)
+    }
 }
