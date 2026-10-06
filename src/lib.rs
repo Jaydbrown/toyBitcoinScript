@@ -146,7 +146,6 @@ pub fn is_true(b: &[u8]) -> bool {
     }
     for (i, &x) in b.iter().enumerate() {
         if x != 0 {
-            // In Bitcoin Script, negative zero (0x80) is false
             if i == b.len() - 1 && x == 0x80 {
                 return false;
             }
@@ -169,8 +168,6 @@ pub fn decode_num(b: &[u8]) -> Result<i64, &'static str> {
         result |= (byte as i64) << (8 * i);
     }
 
-    // Bitcoin script numbers use sign-magnitude encoding:
-    // the most significant bit of the last byte is the sign bit.
     let last = *b.last().unwrap();
     if last & 0x80 != 0 {
         result &= !(0x80i64 << (8 * (b.len() - 1)));
