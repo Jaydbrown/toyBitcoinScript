@@ -207,4 +207,3 @@ pub fn hash160(data: &[u8]) -> Vec<u8> {
     let ripemd_digest = Ripemd160::digest(sha_digest);
     ripemd_digest.to_vec()
 }
-
