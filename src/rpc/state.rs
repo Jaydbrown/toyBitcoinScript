@@ -9,7 +9,7 @@ pub struct eval_script_action{
 }
 
 pub fn decode(&self, s: &str) -> Result<Vec<u8>,  &'static str>{
-    if let some(s) != 0 {
+    if s.len() != 0 {
         return Err("you have an unequal number of hexadecimal string");
     }
 
