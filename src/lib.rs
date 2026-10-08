@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+pub mod blockchain;
 pub mod executionStack;
 pub mod opcode;
 pub mod p2p;

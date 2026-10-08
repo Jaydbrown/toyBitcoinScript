@@ -44,27 +44,41 @@ pub trait NodeRpc {
 
 pub struct NodeRpcServerImpl {
     pub swarm: Option<Arc<Swarm>>,
+    pub chain: Option<crate::blockchain::SharedBlockchain>,
 }
 
 impl NodeRpcServerImpl {
-    pub fn new(swarm: Arc<Swarm>) -> Self {
-        Self { swarm: Some(swarm) }
+    pub fn new(swarm: Arc<Swarm>, chain: crate::blockchain::SharedBlockchain) -> Self {
+        Self {
+            swarm: Some(swarm),
+            chain: Some(chain),
+        }
     }
 }
 
 impl Default for NodeRpcServerImpl {
     fn default() -> Self {
-        Self { swarm: None }
+        Self {
+            swarm: None,
+            chain: None,
+        }
     }
 }
 
 #[jsonrpsee::core::async_trait]
 impl NodeRpcServer for NodeRpcServerImpl {
     async fn get_blockchain_info(&self) -> RpcResult<BlockchainInfo> {
+        let (blocks, best_block_hash) = if let Some(chain) = &self.chain {
+            let c = chain.read().await;
+            (c.height(), c.best_block_hash_hex())
+        } else {
+            (0, "0000000000000000000000000000000000000000000000000000000000000000".to_string())
+        };
+
         Ok(BlockchainInfo {
-            chain: "toynet".to_string(),
-            blocks: 0,
-            best_block_hash: "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+            chain: "toyBitcoinScript".to_string(),
+            blocks,
+            best_block_hash,
             difficulty: 1,
             verification_progress: 1.0,
         })

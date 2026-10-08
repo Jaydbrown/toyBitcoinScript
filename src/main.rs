@@ -72,6 +72,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let preferred_p2p_port: u16 = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(8001);
     let manual_peer = args.get(3).map(|s| s.as_str());
 
+    // 0. Initialize Shared Blockchain (with Genesis Block)
+    let blockchain = Arc::new(tokio::sync::RwLock::new(toyBitcoinScript::blockchain::Blockchain::new()));
+
     // 1. Initialize P2P Swarm & bind to an available port
     let swarm = Arc::new(Swarm::new());
     let (p2p_addr, _p2p_port) = bind_p2p_swarm(&swarm, preferred_p2p_port).await?;
@@ -91,9 +94,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut rpc_module = StateRpcServerImpl.into_rpc();
     rpc_module.merge(RawTransactionsRpcServerImpl.into_rpc())?;
-    let node_rpc = NodeRpcServerImpl::new(swarm.clone());
+    let node_rpc = NodeRpcServerImpl::new(swarm.clone(), blockchain.clone());
     rpc_module.merge(node_rpc.into_rpc())?;
-    rpc_module.merge(MiningRpcServerImpl.into_rpc())?;
+    let mining_rpc = MiningRpcServerImpl::new(blockchain.clone());
+    rpc_module.merge(mining_rpc.into_rpc())?;
 
     let handle = server.start(rpc_module);
     println!("[RPC] JSON-RPC Server listening on http://{}", rpc_addr);
