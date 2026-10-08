@@ -11,7 +11,7 @@ pub struct TxOut {
 }
 
 pub struct Tx {
-    pub version: i32,
+    pub version: u32,
     pub inputs: Vec<TxIn>,
     pub outputs: Vec<TxOut>,
     pub locktime: u32,
