@@ -324,7 +324,7 @@ cargo test
 
 ---
 
-## License
+## Contributing
 
-MIT License. Free to use, modify, and distribute.
+Feel free to open a PR if you feel the need to add any features or modify.
 
