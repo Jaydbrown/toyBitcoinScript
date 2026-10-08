@@ -33,7 +33,7 @@ impl Swarm {
     pub async fn mempool_info(&self) -> (usize, usize, usize) {
         let txs = self.seen_transactions.read().await;
         let size = txs.len();
-        let bytes: usize = txs.iter().map(|hex| hex.len() / 2).sum();
+        let bytes: usize = txs.iter().map(|hex| hex.len() / 2).sum();// what does this mean?
         let usage = bytes + (size * 64);
         (size, bytes, usage)
     }
