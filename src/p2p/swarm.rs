@@ -164,5 +164,20 @@ impl Swarm {
 
         Ok(())
     }
+
+    /// Automatically connects to seed nodes in the background (like Bitcoin DNS seeds)
+    pub async fn connect_to_seeds(self: &Arc<Self>, seeds: &[&str], my_addr: &str) {
+        for &seed in seeds {
+            if seed == my_addr {
+                continue;
+            }
+            println!("[P2P] Discovered default seed node at {}, connecting...", seed);
+            if let Ok(()) = self.connect_to_peer(seed).await {
+                println!("[P2P] Successfully connected to seed node: {}", seed);
+            }
+        }
+    }
 }
+
+pub const DEFAULT_SEED_NODES: &[&str] = &["127.0.0.1:8001"];
 
