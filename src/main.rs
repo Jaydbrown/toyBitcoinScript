@@ -1,50 +1,83 @@
-#![allow(non_snake_case)]
+use std::sync::Arc;
+use jsonrpsee::server::Server;
+use toyBitcoinScript::p2p::Swarm;
+use toyBitcoinScript::rpc::{
+    MiningRpcServer, MiningRpcServerImpl,
+    NodeRpcServer, NodeRpcServerImpl,
+    RawTransactionsRpcServer, RawTransactionsRpcServerImpl,
+    StateRpcServer, StateRpcServerImpl,
+};
 
-use toyBitcoinScript::{Opcode, ToyScript, hash160};
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!(r"
+       ==============          ====          ==        ==
+             ==               ==  ==          ==      == 
+             ==              ========          ==    ==  
+             ==             ==      ==          ======   
+       ==    ==            ==        ==           ==     
+        ======            ==          ==          ==     
 
-fn main() -> Result<(), &'static str> {
-    println!("Testing Bitcoin ToyScript Engine\n");
+     ====  ==  ======  ====   ====   ==  ==   ==
+     == == ==    ==   ==     ==  ==  ==  ===  ==
+     ====  ==    ==   ==     ==  ==  ==  == = ==
+     == == ==    ==   ==     ==  ==  ==  ==  ===
+     ====  ==    ==    ====   ====   ==  ==   ==
 
-    println!("Running: OP_2 OP_3 OP_ADD");
-    let script = ToyScript::new(vec![
-        Opcode::Op2 as u8,
-        Opcode::Op3 as u8,
-        Opcode::OpAdd as u8,
-    ]);
-    let stack = script.run()?;
-    println!("Stack: {:?}\n", stack);
+          ==   ==   ====   ====    =====
+          ===  ==  ==  ==  == ==   ==   
+          == = ==  ==  ==  ==  ==  ==== 
+          ==  ===  ==  ==  == ==   ==   
+          ==   ==   ====   ====    =====
 
-    println!("Running: <preimage> OP_HASH160 <hash> OP_EQUALVERIFY");
-    let secret = b"secret-passphrase";
-    let target_hash = hash160(secret);
+             Welcome to Jay's Bitcoin Node
+        A light representation of a Bitcoin node
+");
 
-    let mut bytecode = Vec::new();
-    bytecode.push(secret.len() as u8);
-    bytecode.extend_from_slice(secret);
-    bytecode.push(Opcode::OpHash160 as u8);
-    bytecode.push(target_hash.len() as u8);
-    bytecode.extend_from_slice(&target_hash);
-    bytecode.push(Opcode::OpEqualVerify as u8);
+    // Read optional CLI arguments: cargo run -- [rpc_port] [p2p_port] [optional_peer_addr]
+    let args: Vec<String> = std::env::args().collect();
+    let rpc_port = args.get(1).map(|s| s.as_str()).unwrap_or("9944");
+    let p2p_port = args.get(2).map(|s| s.as_str()).unwrap_or("8001");
+    let connect_peer = args.get(3).map(|s| s.as_str());
 
-    let final_stack = ToyScript::new(bytecode).run()?;
-    println!(
-        "Hash verification succeeded! Stack empty: {}\n",
-        final_stack.is_empty()
-    );
+    let rpc_addr = format!("127.0.0.1:{}", rpc_port);
+    let p2p_addr = format!("127.0.0.1:{}", p2p_port);
 
-    println!("Running the same script with the wrong preimage");
-    let mut bad = Vec::new();
-    bad.push(5);
-    bad.extend_from_slice(b"wrong");
-    bad.push(Opcode::OpHash160 as u8);
-    bad.push(target_hash.len() as u8);
-    bad.extend_from_slice(&target_hash);
-    bad.push(Opcode::OpEqualVerify as u8);
-
-    match ToyScript::new(bad).run() {
-        Ok(_) => println!("BUG: wrong preimage was accepted"),
-        Err(e) => println!("Correctly rejected: {}", e),
+    // 1. Initialize P2P Swarm
+    let swarm = Arc::new(Swarm::new());
+    swarm.start_listener(&p2p_addr).await?;
+    println!("[P2P] Listening for swarm peers on {}", p2p_addr);
+    if let Some(peer) = connect_peer {
+        println!("[P2P] Connecting to peer: {} ...", peer);
+        if let Err(e) = swarm.connect_to_peer(peer).await {
+            eprintln!("[P2P] Warning: Could not connect to initial peer {}: {}", peer, e);
+        } else {
+            println!("[P2P] Successfully connected to peer {}", peer);
+        }
     }
 
+    let server = Server::builder().build(&rpc_addr).await?;
+
+    let mut rpc_module = StateRpcServerImpl.into_rpc();
+    rpc_module.merge(RawTransactionsRpcServerImpl.into_rpc())?;
+    let node_rpc = NodeRpcServerImpl::new(swarm.clone());
+    rpc_module.merge(node_rpc.into_rpc())?;
+    rpc_module.merge(MiningRpcServerImpl.into_rpc())?;
+    let handle = server.start(rpc_module);
+    println!("[RPC] JSON-RPC Server listening on http://{}", rpc_addr);
+    println!("\nAvailable RPC Methods:");
+    println!("  - eval_script");
+    println!("  - decoderawtransaction");
+    println!("  - createrawtransaction");
+    println!("  - getblockchaininfo");
+    println!("  - getnetworkinfo");
+    println!("  - getmempoolinfo");
+    println!("  - getblocktemplate");
+    println!("  - submitblock");
+    println!("  - generate\n");
+    println!("Node is running! Press Ctrl+C to stop.\n");
+
+    // Keep server running
+    handle.stopped().await;
     Ok(())
 }

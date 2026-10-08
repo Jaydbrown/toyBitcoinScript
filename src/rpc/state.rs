@@ -43,6 +43,7 @@ fn hex_val(byte: u8) -> Result<u8, &'static str> {
     }
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct eval_script_action {
     pub script_hex: Option<String>,
