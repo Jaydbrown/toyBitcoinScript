@@ -97,7 +97,6 @@ pub fn decode_raw_transactions(hex: &str) -> Result<Tx, &'static str> {
         return Err("Unexpected end of data reading locktime");
     }
     let locktime = u32::from_le_bytes(bytes[cursor..cursor + 4].try_into().unwrap());
-    cursor += 4;
 
     Ok(Tx {
         version,

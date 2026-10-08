@@ -1,15 +1,20 @@
-pub struct TxIn{
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TxIn {
     pub tx_id: [u8; 32],
     pub vout: u32,
     pub sig: String,
-    pub sequence:  u32,
+    pub sequence: u32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TxOut {
     pub value: u64,
     pub scriptPubkey: Vec<u8>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Tx {
     pub version: u32,
     pub inputs: Vec<TxIn>,
@@ -18,7 +23,7 @@ pub struct Tx {
 }
 
 impl Tx {
-    pub fn new(version: i32, locktime: i32) -> Self{
+    pub fn new(version: u32, locktime: u32) -> Self {
         Self {
             version,
             inputs: Vec::new(),

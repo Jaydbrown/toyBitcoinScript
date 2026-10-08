@@ -2,6 +2,9 @@
 
 pub mod executionStack;
 pub mod opcode;
+pub mod p2p;
+pub mod rpc;
+pub mod transaction;
 
 pub use executionStack::Stack;
 pub use opcode::Opcode;
