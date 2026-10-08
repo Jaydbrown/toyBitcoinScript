@@ -326,5 +326,16 @@ cargo test
 
 ## Contributing
 
-Feel free to open a PR if you feel the need to add any features or modify.
+Feel free to open a PR if you feel the need to add any features or modify. Direct pushes to `master` are protected—all changes must be submitted via a Pull Request.
+
+### Contribution Workflow:
+1. Fork or branch from `master`:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+2. Commit and push your changes to your branch:
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+3. Open a Pull Request on GitHub against `master`.
 
