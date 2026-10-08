@@ -1,12 +1,44 @@
 use std::sync::Arc;
 use jsonrpsee::server::Server;
-use toyBitcoinScript::p2p::Swarm;
+use toyBitcoinScript::p2p::{Swarm, DEFAULT_SEED_NODES};
 use toyBitcoinScript::rpc::{
     MiningRpcServer, MiningRpcServerImpl,
     NodeRpcServer, NodeRpcServerImpl,
     RawTransactionsRpcServer, RawTransactionsRpcServerImpl,
     StateRpcServer, StateRpcServerImpl,
 };
+
+async fn bind_p2p_swarm(swarm: &Arc<Swarm>, preferred_port: u16) -> Result<(String, u16), Box<dyn std::error::Error>> {
+    let mut port = preferred_port;
+    loop {
+        let addr = format!("127.0.0.1:{}", port);
+        match swarm.start_listener(&addr).await {
+            Ok(()) => return Ok((addr, port)),
+            Err(_) => {
+                port += 1;
+                if port > preferred_port + 50 {
+                    return Err("Failed to find available P2P port".into());
+                }
+            }
+        }
+    }
+}
+
+async fn build_rpc_server(preferred_port: u16) -> Result<(Server, String, u16), Box<dyn std::error::Error>> {
+    let mut port = preferred_port;
+    loop {
+        let addr = format!("127.0.0.1:{}", port);
+        match Server::builder().build(&addr).await {
+            Ok(server) => return Ok((server, addr, port)),
+            Err(_) => {
+                port += 1;
+                if port > preferred_port + 50 {
+                    return Err("Failed to find available RPC port".into());
+                }
+            }
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -34,35 +66,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         A light representation of a Bitcoin node
 ");
 
-    // Read optional CLI arguments: cargo run -- [rpc_port] [p2p_port] [optional_peer_addr]
+    // Optional CLI port overrides: cargo run -- [rpc_port] [p2p_port] [extra_peer_addr]
     let args: Vec<String> = std::env::args().collect();
-    let rpc_port = args.get(1).map(|s| s.as_str()).unwrap_or("9944");
-    let p2p_port = args.get(2).map(|s| s.as_str()).unwrap_or("8001");
-    let connect_peer = args.get(3).map(|s| s.as_str());
+    let preferred_rpc_port: u16 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(9944);
+    let preferred_p2p_port: u16 = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(8001);
+    let manual_peer = args.get(3).map(|s| s.as_str());
 
-    let rpc_addr = format!("127.0.0.1:{}", rpc_port);
-    let p2p_addr = format!("127.0.0.1:{}", p2p_port);
-
-    // 1. Initialize P2P Swarm
+    // 1. Initialize P2P Swarm & bind to an available port
     let swarm = Arc::new(Swarm::new());
-    swarm.start_listener(&p2p_addr).await?;
-    println!("[P2P] Listening for swarm peers on {}", p2p_addr);
-    if let Some(peer) = connect_peer {
-        println!("[P2P] Connecting to peer: {} ...", peer);
-        if let Err(e) = swarm.connect_to_peer(peer).await {
-            eprintln!("[P2P] Warning: Could not connect to initial peer {}: {}", peer, e);
-        } else {
-            println!("[P2P] Successfully connected to peer {}", peer);
-        }
+    let (p2p_addr, _p2p_port) = bind_p2p_swarm(&swarm, preferred_p2p_port).await?;
+    println!("[P2P] Swarm listening for peers on {}", p2p_addr);
+
+    // 2. Automatically connect to default seed nodes (Bitcoin behavior)
+    swarm.connect_to_seeds(DEFAULT_SEED_NODES, &p2p_addr).await;
+
+    // Connect to any additional manual peer if provided
+    if let Some(peer) = manual_peer {
+        println!("[P2P] Connecting to manual peer: {} ...", peer);
+        let _ = swarm.connect_to_peer(peer).await;
     }
 
-    let server = Server::builder().build(&rpc_addr).await?;
+    // 3. Build & start JSON-RPC Server on an available port
+    let (server, rpc_addr, _rpc_port) = build_rpc_server(preferred_rpc_port).await?;
 
     let mut rpc_module = StateRpcServerImpl.into_rpc();
     rpc_module.merge(RawTransactionsRpcServerImpl.into_rpc())?;
     let node_rpc = NodeRpcServerImpl::new(swarm.clone());
     rpc_module.merge(node_rpc.into_rpc())?;
     rpc_module.merge(MiningRpcServerImpl.into_rpc())?;
+
     let handle = server.start(rpc_module);
     println!("[RPC] JSON-RPC Server listening on http://{}", rpc_addr);
     println!("\nAvailable RPC Methods:");
@@ -77,7 +109,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  - generate\n");
     println!("Node is running! Press Ctrl+C to stop.\n");
 
-    // Keep server running
     handle.stopped().await;
     Ok(())
 }
