@@ -93,31 +93,36 @@ cargo build
 
 ## Running the Node
 
-### Single Node (Default)
-To run a standalone node:
+### 1. Automatic Multi-Node Swarm (Zero Configuration)
+The node includes automatic port allocation and default seed discovery (similar to Bitcoin Core's DNS seed behavior). You can run multiple connected nodes simply by opening new terminals:
+
+**Terminal 1 (Seed Node):**
 ```bash
 cargo run
 ```
-By default, the node initializes:
-- JSON-RPC server listening on `http://127.0.0.1:9944`
-- P2P Swarm listener on `127.0.0.1:8001`
-
-### Running a Multi-Node Swarm
-You can run multiple instances on the same machine by passing CLI arguments:
-```bash
-cargo run -- [rpc_port] [p2p_port] [peer_address_to_connect]
-```
-
-**Terminal 1 (Bootstrap Node):**
-```bash
-cargo run -- 9944 8001
-```
+- Binds P2P to `127.0.0.1:8001` (acts as the default seed node).
+- Binds JSON-RPC to `http://127.0.0.1:9944`.
 
 **Terminal 2 (Peer Node):**
 ```bash
-cargo run -- 9945 8002 127.0.0.1:8001
+cargo run
 ```
-The second node will bind its RPC to port 9945, listen for P2P on port 8002, and automatically connect to Node 1 on port 8001. Any transactions submitted to Node 1 will gossip to Node 2 automatically.
+- Detects that ports `8001` and `9944` are busy.
+- Automatically selects the next available ports (`8002` for P2P, `9945` for RPC).
+- Automatically discovers and connects to the seed node at `127.0.0.1:8001`.
+
+Both nodes are now connected in a P2P swarm. Any transactions submitted to Node 1 will automatically gossip across the network to Node 2!
+
+### 2. Manual CLI Port Overrides (Optional)
+You can still manually specify custom ports or explicit peer addresses:
+```bash
+cargo run -- [rpc_port] [p2p_port] [extra_peer_address]
+```
+
+Example:
+```bash
+cargo run -- 9950 8010 127.0.0.1:8001
+```
 
 ---
 
@@ -338,4 +343,11 @@ Feel free to open a PR if you feel the need to add any features or modify. Direc
    git push origin feature/your-feature-name
    ```
 3. Open a Pull Request on GitHub against `master`.
+
+---
+
+
+
+Open a PR if you feel the need to contribute to this. For understanding purposes
+
 
