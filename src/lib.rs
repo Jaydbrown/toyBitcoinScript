@@ -211,3 +211,71 @@ pub fn hash160(data: &[u8]) -> Vec<u8> {
     let ripemd_digest = Ripemd160::digest(sha_digest);
     ripemd_digest.to_vec()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_op_2_op_3_op_sub() {
+        // OP_2 (0x52) OP_3 (0x53) OP_SUB (0x94)
+        // stack: [2, 3] -> 2 - 3 = -1 -> [0x81]
+        let script = ToyScript::new(vec![
+            Opcode::Op2 as u8,
+            Opcode::Op3 as u8,
+            Opcode::OpSub as u8,
+        ]);
+        let mut stack = script.run().expect("script execution should not panic");
+        let top = stack.pop().expect("stack should not be empty");
+        assert_eq!(top, vec![0x81]);
+        assert_eq!(decode_num(&top), Ok(-1));
+    }
+
+    #[test]
+    fn test_op_1negate_decoding() {
+        // Op1Negate (0x4f) pushes 0x81 (-1 in Bitcoin sign-magnitude representation)
+        let script = ToyScript::new(vec![Opcode::Op1Negate as u8]);
+        let mut stack = script.run().expect("script execution should not panic");
+        let top = stack.pop().expect("stack should not be empty");
+        assert_eq!(top, vec![0x81]);
+        // Must decode as -1, not 129
+        assert_eq!(decode_num(&top), Ok(-1));
+    }
+
+    #[test]
+    fn test_arithmetic_with_negative_numbers() {
+        // OP_1NEGATE (-1) OP_1 (1) OP_ADD -> 0 (empty vec in Bitcoin Script)
+        let script = ToyScript::new(vec![
+            Opcode::Op1Negate as u8,
+            Opcode::Op1 as u8,
+            Opcode::OpAdd as u8,
+        ]);
+        let mut stack = script.run().expect("should run cleanly");
+        let top = stack.pop().unwrap();
+        assert_eq!(top, Vec::<u8>::new());
+        assert_eq!(decode_num(&top), Ok(0));
+
+        // OP_2 OP_3 OP_SUB (-1) OP_1ADD -> 0
+        let script2 = ToyScript::new(vec![
+            Opcode::Op2 as u8,
+            Opcode::Op3 as u8,
+            Opcode::OpSub as u8,
+            Opcode::Op1Add as u8,
+        ]);
+        let mut stack2 = script2.run().expect("should run cleanly");
+        let top2 = stack2.pop().unwrap();
+        assert_eq!(top2, Vec::<u8>::new());
+        assert_eq!(decode_num(&top2), Ok(0));
+    }
+
+    #[test]
+    fn test_basic_opcodes() {
+        let script = ToyScript::new(vec![
+            Opcode::Op2 as u8,
+            Opcode::Op3 as u8,
+            Opcode::OpAdd as u8,
+        ]);
+        let mut stack = script.run().unwrap();
+        assert_eq!(stack.pop().unwrap(), vec![5]);
+    }
+}
